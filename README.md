@@ -16,10 +16,9 @@ Word_#2 to request the next word and so on. This process continues until the cli
 Once the client receives the keyword EOF, it closes the local file after writing the last word to the file.
 
 ## How to run
-cd to socket-prog-1 folder
-make clean
-make server
-make client
+cd to socket-prog-1 folder\
+make clean\
+make server\
+make client\
 
-## How to run
-make sure to create the existing text file which needs to be copied
+make sure to create the existing text file which needs to be copied\
