@@ -1,70 +1,163 @@
-// Server side C/C++ program to demonstrate Socket
-// programming
-#include <netinet/in.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/socket.h>
+#include <arpa/inet.h>
 #include <unistd.h>
-#define PORT 8080
-int main(int argc, char const* argv[])
-{
-	int server_fd, new_socket, valread;
-	struct sockaddr_in address;
-	int opt = 1;
-	int addrlen = sizeof(address);
-	char buffer[1024] = { 0 };
-	char* hello = "Hello from server";
+#define SIZE 1024
 
-	// Creating socket 
-	if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-		perror("socket failed");
-		exit(EXIT_FAILURE);
+// Just change this function
+// check if the file requested by client is present or not
+// if present send yes or no
+// wait for client request of word# and start sending word by word
+
+
+void write_file(int sockfd){   // sockfd of client
+	printf("\nHey from server");
+
+
+	int sentbytes;
+	int recebytes;
+	char fileName[50];
+	char fileData[200];
+	char wordArr[1024];
+	char buffer[250];
+	
+	recebytes = recv(sockfd,buffer,sizeof(buffer),0);
+	if(recebytes == -1){
+		// is reception fails
+		printf("\nNo file name found at server");
+		close(sockfd);
+		exit(0);	
 	}
 
-	// adding address and port
-	if (setsockopt(server_fd, SOL_SOCKET,
-				SO_REUSEADDR | SO_REUSEPORT, &opt,
-				sizeof(opt))) {
-		perror("setsockopt");
-		exit(EXIT_FAILURE);
-	}
-	address.sin_family = AF_INET;
-	address.sin_addr.s_addr = INADDR_ANY;
-	address.sin_port = htons(PORT);
-
-	// binding part
-	if (bind(server_fd, (struct sockaddr*)&address,
-			sizeof(address))
-		< 0) {
-		perror("bind failed");
-		exit(EXIT_FAILURE);
-	}
-
-    // listining part
-	if (listen(server_fd, 3) < 0) {
-		perror("listen");
-		exit(EXIT_FAILURE);
-	}
-
-    // now accepting
-	if ((new_socket
-		= accept(server_fd, (struct sockaddr*)&address,
-				(socklen_t*)&addrlen))
-		< 0) {
-		perror("accept");
-		exit(EXIT_FAILURE);
+	printf("\nFile requested is : %s",buffer);
+	
+	
+	if (access(buffer, F_OK) == 0) {
+		printf("\nFile exists");
+		strcpy(fileName,buffer);		
+		strcpy(buffer,"File exists");
+		sentbytes = send(sockfd,buffer,sizeof(buffer),0);	// file not found
+		if(sentbytes == -1){
+			close(sockfd);
+			printf("\nFile exists message failed");
+			exit(0);	
+		}
+	} else {
+	    	strcpy(buffer,"File Not found");
+		sentbytes = send(sockfd,buffer,sizeof(buffer),0);	// file not found
+		if(sentbytes == -1){
+			close(sockfd);
+			printf("\nError sending yes no at server");
+			exit(0);	
+		}
+		printf("\nFile does not exist at server");
+		close(sockfd);
+		exit(0);
 	}
 
-    // finaly the message that needs to be transmitted
-	valread = read(new_socket, buffer, 1024);
-	printf("%s\n", buffer);
-	send(new_socket, hello, strlen(hello), 0);
-	printf("Hello message sent\n");
+	recebytes = recv(sockfd,buffer,sizeof(buffer),0);
+	if(recebytes == -1){
+		// is reception fails
+		printf("\nWord 0 request failed");
+		close(sockfd);
+		exit(0);	
+	}
 
-	// closing the connected socket
-	close(new_socket);
-	// closing the listening socket
-	shutdown(server_fd, SHUT_RDWR);
-	return 0;
+	printf("%s",buffer); // must print word_0
+
+	FILE *fp;
+	
+	fp = fopen(fileName, "r");
+	
+	if(fp == NULL){	
+		printf("error opening file");
+		close(sockfd);
+		exit(0);
+	}
+
+	while (fscanf(fp, " %1023s", wordArr) == 1) {		// longest word is 1023
+		strcpy(buffer,wordArr);
+		printf("\nwords : %s",buffer);
+
+
+		sentbytes = send(sockfd,buffer,sizeof(buffer),0);	// file not found
+		if(sentbytes == -1){
+			close(sockfd);
+			printf("\nError sending words to client");
+			close(sockfd);
+			exit(0);	
+		}
+
+		recebytes = recv(sockfd,buffer,sizeof(buffer),0);
+		if(recebytes == -1){
+			// is reception fails
+			printf("\nNo word request from client");
+			close(sockfd);
+			exit(0);	
+		}
+	
+		printf("\nwords : %s",buffer);
+
+	}
+	
+	strcpy(buffer,"EOF");
+	sentbytes = send(sockfd,buffer,sizeof(buffer),0);	// file not found
+	if(sentbytes == -1){
+		close(sockfd);
+		printf("\nError sending words to client");
+		exit(0);	
+	}
+	
+	fclose(fp);
+
+
+}
+ 
+int main(){
+  char *ip = "127.0.0.1";
+  int port = 8080;
+  int e;
+ 
+  int sockfd, new_sock;
+  struct sockaddr_in server_addr, new_addr;
+  socklen_t addr_size;
+  char buffer[SIZE];
+ 
+  sockfd = socket(AF_INET, SOCK_STREAM, 0);
+  if(sockfd < 0) {
+    perror("[-]Error in socket");
+    exit(1);
+  }
+  printf("[+]Server socket created successfully.\n");
+ 
+  server_addr.sin_family = AF_INET;
+  server_addr.sin_port = port;
+  server_addr.sin_addr.s_addr = inet_addr(ip);
+ 
+  e = bind(sockfd, (struct sockaddr*)&server_addr, sizeof(server_addr));
+  if(e < 0) {
+    perror("[-]Error in bind");
+    exit(1);
+  }
+  printf("[+]Binding successfull.\n");
+ 
+  if(listen(sockfd, 10) == 0){
+ printf("[+]Listening....\n");
+ }else{
+ perror("[-]Error in listening");
+    exit(1);
+ }
+ 
+  addr_size = sizeof(new_addr);
+  new_sock = accept(sockfd, (struct sockaddr*)&new_addr, &addr_size);
+
+  // sending file here word by word
+  write_file(new_sock);				
+
+		
+  printf("\n[+]Data written in the file successfully.\n");
+  close(sockfd);
+close(new_sock);
+  return 0;
 }
