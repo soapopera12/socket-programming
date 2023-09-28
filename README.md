@@ -20,5 +20,4 @@ cd to socket-prog-1 folder\
 make clean\
 make server\
 make client\
-
 make sure to create the existing text file which needs to be copied\
